@@ -1,0 +1,66 @@
+fluidRow(
+  tabsetPanel(type = "tabs",
+              tabPanel("Summary",
+                       plotOutput("fastqc_summary", height = "600px")),
+              tabPanel("Read Totals",
+                       plotOutput("fastqc_readstotal", height = "600px")),
+              tabPanel("Per Base Sequence Qualities",
+                       tabsetPanel(type = "tabs",
+                                   tabPanel("Combined heatmap",
+                                            plotOutput("fastqc_fastqc_perBaseQ_all", height = "600px")),
+                                   tabPanel("Individual Boxplot",
+                                            plotOutput("fastqc_perBaseQ", height = "600px"))
+                                   )),
+              tabPanel("Sequence Quality Per Read",
+                       tabsetPanel(type = "tabs",
+                                   tabPanel("Combined heatmap",
+                                            plotOutput("fastqc_SeqQ_all_heat", height = "600px")),
+                                   tabPanel("Combined Lineplot",
+                                            plotOutput("fastqc_SeqQ_all_line", height = "600px")),
+                                   tabPanel("Individual Lineplot",
+                                            plotOutput("fastqc_SeqQ", height = "600px"))
+                       )),
+              tabPanel("Per Base Sequence Content",
+                       tabsetPanel(type = "tabs",
+                                   tabPanel("Combined heatmap",
+                                            plotOutput("fastqc_SeqCo_all_heat", height = "600px")),
+                                   tabPanel("Combined Lineplot",
+                                            plotOutput("fastqc_SeqCo_all_line", height = "600px")),
+                                   tabPanel("Individual Lineplot",
+                                            plotOutput("fastqc_SeqCo", height = "600px"))
+                       )),
+              tabPanel("Adapter Content",
+                       tabsetPanel(type = "tabs",
+                                   tabPanel("Combined heatmap",
+                                            plotOutput("fastqc_AdaptCo_all_heat", height = "600px")),
+                                   tabPanel("Combined Lineplot",
+                                            plotOutput("fastqc_AdaptCo_all_line", height = "600px")),
+                                   tabPanel("Individual Lineplot",
+                                            plotOutput("fastqc_AdaptCo", height = "600px"))
+                       )),
+              tabPanel("Sequence Duplication Levels",
+                       tabsetPanel(type = "tabs",
+                                   tabPanel("Combined heatmap",
+                                            plotOutput("fastqc_DupL_all_heat", height = "600px")),
+                                   tabPanel("Individual Lineplot",
+                                            plotOutput("fastqc_DupL", height = "600px"))
+                       )),
+  
+              tabPanel("GC Content",
+                       tabsetPanel(type = "tabs",
+                                   tabPanel("Combined fastqc_GC_all_heat",
+                                            plotOutput("fastqc_GC_all_heat", height = "600px")),
+                                   tabPanel("Combined Lineplot",
+                                            plotOutput("fastqc_GC_all_line", height = "600px")),
+                                   tabPanel("Individual Lineplot",
+                                            plotOutput("fastqc_GC", height = "600px"))
+                       )),
+              tabPanel("Overrepresented Sequences",
+                       tabsetPanel(type = "tabs",
+                                   tabPanel("Combined Barplot",
+                                            plotOutput("fastqc_OverRep_all", height = "600px")),
+                                   tabPanel("Individual Barplot",
+                                            plotOutput("fastqc_OverRep", height = "600px"))
+                       ))
+  )
+)

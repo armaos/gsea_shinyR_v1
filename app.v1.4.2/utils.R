@@ -1,0 +1,169 @@
+
+get_ora_vector <- function(ora_cond){
+  
+  print("get_ora_vector")
+  print(ora_cond)
+  
+  
+  if(rv$submission_by == "By group"){
+    group = input$gene_select_by_group
+    values = input$gene_select_by_group_values
+    
+    ora_input_data_genes = rv$msi_df %>% 
+      select(primary_name, all_of(group)) %>%
+      filter(!is.na(!!as.symbol(group))) %>% 
+      separate_rows(!!as.symbol(group), sep = "[,]") %>%  
+      filter(!!as.symbol(group) %in% values ) %>%
+      unique() %>%
+      #separate_rows(primary_name, sep = ",") %>%
+      distinct(primary_name)
+    
+    
+    ora_input_data <- rv$msi_df %>% 
+      select(primary_name, contains("logFC"), contains("FDR")) %>%
+      #separate_rows(Name, sep = ",") %>%
+      filter(primary_name %in% ora_input_data_genes$primary_name ) %>%
+      gather(k, v , -primary_name) %>% 
+      separate(k, c("cond", "value_type"), sep = "[.]") %>% 
+      spread(value_type, v)
+    
+    
+  }else if(rv$submission_by == "Upon filtering"){
+    
+    fc_filter_low <<- input$slider_lfc[1] 
+    fc_filter_high <<- input$slider_lfc[2] 
+    
+    ora_input_data = get_filtered_msi_df(rv$msi_df %>% 
+                                       select(primary_name, contains("logFC"), contains("FDR")), ora_cond, fdr_filter, fc_filter_low )
+      
+    
+  }else if(rv$submission_by == "Custom Set"){
+    ora_input_data_genes <- rv$msi_df %>%  
+      separate_rows(Name, sep = ",") %>%
+      filter(Name %in% rv$input_genes) %>%
+      distinct(primary_name)
+    
+    ora_input_data <- rv$msi_df %>% 
+      select(primary_name, contains("logFC"), contains("FDR")) %>%
+      #separate_rows(Name, sep = ",") %>%
+      filter(primary_name %in% ora_input_data_genes$primary_name ) %>%
+      gather(k, v , -primary_name) %>% 
+      separate(k, c("cond", "value_type"), sep = "[.]") %>% 
+      spread(value_type, v) 
+    
+  }
+  
+  
+  
+  if(ora_cond != ""){
+    ora_input_data <- ora_input_data %>% 
+      filter(cond == ora_cond)
+  }
+  return(ora_input_data)
+  
+}
+
+rename_msi_df_columns = function(colnames_all, old_name, new_name){
+  colnames_all[colnames_all %in% c(old_name)]= new_name
+  return(colnames_all)
+}
+
+get_filtered_msi_df <- function(df, condition, fdr_filter, logfc_filter){
+  print(paste(colnames(df)))
+  return(df %>%
+           gather(k, v , -primary_name) %>% 
+           separate(k, c("cond", "value_type"), sep = "[.]") %>% 
+           spread(value_type, v) %>% 
+           filter(cond == condition) %>%
+           filter(abs(logFC) >= logfc_filter & FDR <= fdr_filter)
+  )
+}
+
+
+
+see_pathview <- function(..., save_image = FALSE)
+{
+  arguments <- list(...)
+  pathview(gene.data = arguments$gene.data,
+           gene.idtype = arguments$gene.idtype,
+           pathway.id = arguments$pathway.id,
+           species = arguments$species,
+           bins = arguments$bins,
+           limit = arguments$limit,
+           low = arguments$low,
+           mid = arguments$mid,
+           high = arguments$high,
+           na.col = arguments$na.col,
+           kegg.native = arguments$kegg.native,
+           kegg.dir = arguments$kegg.dir,
+           same.layer = arguments$same.layer,
+           sign.pos = arguments$sign.pos,
+           new.signature =  arguments$new.signature ,
+           out.suffix	= arguments$out.suffix
+           
+           
+  )
+  
+  msg <- capture.output(pathview::pathview(...), type = "message")
+  
+  msg <- grep("image file", msg, value = T)
+  filename <- sapply(strsplit(msg, " "), function(x) x[length(x)])
+  file.remove(filename)
+  img <- png::readPNG(filename)
+  grid::grid.raster(img)
+  
+}
+
+empty_image <- function(..., save_image = FALSE)
+{
+  print("empty image!")
+  grid::grid.raster(png::readPNG("empty.png"))
+}
+
+
+
+get_manual_metadata <- function(){
+  x <- reactiveValuesToList(input)
+  x <- c(x[startsWith(names(x), "Subgroup_")],  x[startsWith(names(x), "Treatment_") ] )
+  
+  
+  metadata_df = data.frame(
+    names = names(x),
+    values = unlist(x, use.names = FALSE)
+  ) %>% 
+    filter(grepl("Treatment_", names) | grepl("Subgroup_", names) ) %>%
+    mutate(
+      names = str_remove(names, "Treatment_"),
+      names = str_remove(names, "Subgroup_")
+    ) %>%
+    group_by(names) %>%
+    summarise(values = paste(values, collapse = "."))
+
+  return(metadata_df)
+}
+
+rename_dol <- function(dol_df){
+  dol_df <- dol_df %>% 
+    rename_at(vars(ends_with('.O')), funs(str_replace(., ".O$", ".Medium"))) %>%
+    rename_at(vars(ends_with('.D')), funs(str_replace(., ".D$", ".Low"))) %>%
+    rename_at(vars(ends_with('.L')), funs(str_replace(., ".L$", ".High")))  %>%
+    rename_at(vars(matches('[B][1-9]')), funs(str_replace(., "^B", "Brown")))  %>%
+    rename_at(vars(matches('[G][1-9]')), funs(str_replace(., "^G", "Green")))
+  return(dol_df)
+}
+
+rename_condition_dol <- function(cond){
+  cond_label = switch (cond,
+                       "D_O" = "Low_Medium",
+                       "L_O" = "High_Medium", 
+                       "D_L" = "Low_High" ,
+                       "B_G_in_O" = "Brown_Green_in_Medium",
+                       "B_G_in_L" = "Brown_Green_in_High",
+                       "B_G_in_D" = "Brown_Green_in_Low",
+  )
+  return(cond_label)
+}
+
+clean_RunAcc <- function(runacc){
+  return( str_remove(runacc, "_001.fastq.tabular|_002.fastq.tabular|_fastq.tabular|.fastq.tabular|.tabular"))
+}
