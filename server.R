@@ -35,7 +35,7 @@ library(ngsReports)
 
 
 if (!interactive()) sink(stderr(), type = "output")
-wd = "/srv/shiny-server/gsea_shinyR/"
+wd = "/srv/shiny-server/gsea_shinyR_v1/"
 version = "app.v1.4.3"
 
 #print(version)
