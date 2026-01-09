@@ -52,11 +52,19 @@ rename_msi_df_columns <- function(colnames_all, old_name, new_name) {
   return(colnames_all)
 }
 
-calculate_y <- function(filtered, group) {
-  y <- DGEList(counts = filtered, group = group)
+calculate_y <- function(filtered_counts, group, normMat_subset = NULL) {
+  y <- DGEList(counts = filtered_counts, group = group)
   keep <- rowSums(cpm(y) > 1) >= 2
   y <- y[keep, keep.lib.sizes = FALSE]
   y <- calcNormFactors(y, method = "none")  # tximport norm before
+  
+  # Apply normalization offset if provided (from full dataset normalization)
+  if (!is.null(normMat_subset)) {
+    # Subset normMat to match the kept genes
+    normMat_subset <- normMat_subset[rownames(y), , drop = FALSE]
+    y <- scaleOffset(y, normMat_subset)
+  }
+  
   return(y)
 }
 
@@ -118,7 +126,11 @@ y <- scaleOffset(y, normMat)
 keep <- filterByExpr(y)
 y <- y[keep, ]
 
-# Get CPM data
+# Store the normalized y object and offset for later use
+y_full <- y
+normMat_full <- normMat[keep, , drop = FALSE]  # Subset offset matrix to match filtered genes
+
+# Get CPM data for display/filtering
 data <- as.data.frame(cpm(y))
 data$Geneid <- rownames(data)
 rownames(data) <- NULL
@@ -136,7 +148,7 @@ cat("\n=== Step 2: Processing and filtering data ===\n")
 c <- data[!duplicated(data$Geneid), ]
 rownames(c) <- c$Geneid
 
-# Create count matrix
+# Create count matrix from CPM (for filtering purposes)
 countData.all <- as.matrix(c[2:ncol(c)])
 rownames(countData.all) <- c$Geneid
 countData <- countData.all
@@ -144,6 +156,17 @@ countData <- countData.all
 # Filter: keep genes with >10 counts in at least 1/5 of samples
 filter <- apply(countData, 1, function(x) length(x[x > 10]) >= ncol(countData) / 5)
 filtered <- countData[filter, ]
+
+# IMPORTANT: Use raw counts from y_full, not CPM, for DE analysis
+# The normalization offset is already applied to y_full
+# Ensure rownames match between filtered and y_full$counts
+common_genes <- intersect(rownames(filtered), rownames(y_full$counts))
+if (length(common_genes) < nrow(filtered)) {
+  cat("WARNING: Some genes in filtered are not in y_full$counts\n")
+  cat("  filtered genes:", nrow(filtered), ", common genes:", length(common_genes), "\n")
+}
+filtered_counts <- y_full$counts[common_genes, , drop = FALSE]
+filtered <- filtered[common_genes, , drop = FALSE]  # Also subset filtered to match
 
 cat("After filtering:", nrow(filtered), "genes\n")
 
@@ -218,7 +241,9 @@ metadata_df <- do.call(rbind, lapply(metadata_list, function(x) {
 }))
 
 # Rename columns in filtered data (use long format for internal processing)
+# Apply to both CPM (filtered) and counts (filtered_counts)
 colnames(filtered) <- metadata_df$sample[match(colnames(filtered), sample_names)]
+colnames(filtered_counts) <- metadata_df$sample[match(colnames(filtered_counts), sample_names)]
 
 cat("Sample metadata:\n")
 print(metadata_df)
@@ -298,8 +323,8 @@ for (contrast_str in all_contrasts) {
     group_1 <- str_split(group_contrast, "-", simplify = TRUE)[1]
     group_2 <- str_split(group_contrast, "-", simplify = TRUE)[2]
     
-    # Filter columns for this treatment
-    filtered_to_contrast <- filtered[, grep(paste0("\\.", conditional_treatment, "$"), colnames(filtered)), drop = FALSE]
+    # Filter columns for this treatment (use counts, not CPM)
+    filtered_to_contrast <- filtered_counts[, grep(paste0("\\.", conditional_treatment, "$"), colnames(filtered_counts)), drop = FALSE]
     filtered_to_contrast <- filtered_to_contrast[, c(
       grep(paste0("^", group_1, "\\d*\\."), colnames(filtered_to_contrast), perl = TRUE),
       grep(paste0("^", group_2, "\\d*\\."), colnames(filtered_to_contrast), perl = TRUE)
@@ -318,10 +343,10 @@ for (contrast_str in all_contrasts) {
     group_2 <- parts[2]
     conditional_treatment <- ""
     
-    # Filter columns
-    filtered_to_contrast <- filtered[, c(
-      grep(paste0("\\.", group_1, "$"), colnames(filtered)),
-      grep(paste0("\\.", group_2, "$"), colnames(filtered))
+    # Filter columns (use counts, not CPM)
+    filtered_to_contrast <- filtered_counts[, c(
+      grep(paste0("\\.", group_1, "$"), colnames(filtered_counts)),
+      grep(paste0("\\.", group_2, "$"), colnames(filtered_counts))
     ), drop = FALSE]
     
     # Get group_by from treatment
@@ -349,7 +374,9 @@ for (contrast_str in all_contrasts) {
     filter(n == 1)
   
   # Calculate y and fit
-  y <- calculate_y(filtered_to_contrast, group_by)
+  # Get the subset of normalization offset matrix for this contrast
+  normMat_subset <- normMat_full[, colnames(filtered_to_contrast), drop = FALSE]
+  y <- calculate_y(filtered_to_contrast, group_by, normMat_subset)
   y_fit_list <- make_fit_y(single_replicates, y, design)
   y <- y_fit_list[[1]]
   fit <- y_fit_list[[2]]
@@ -395,11 +422,7 @@ for (contrast_str in all_contrasts) {
     select(logFC, logCPM, LR, PValue, FDR, genelabels, change, everything())
   
   # Get count data from the full filtered dataset (all samples)
-  # Need to get the original y object with all samples, not just the contrast subset
-  # Recreate y from full filtered data for this purpose
-  y_full <- calculate_y(filtered, factor(metadata_df$treatment))
-  
-  # Get counts for all samples
+  # Use the original y_full object which has all samples with proper normalization
   counts <- as.data.frame(y_full$counts)
   
   # Map long column names to short format for output (B1.D, G2.L, etc.)
