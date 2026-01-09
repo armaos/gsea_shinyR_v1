@@ -340,6 +340,7 @@ observeEvent(input$submit_contrast, {
 observeEvent(
   eventExpr = input$submit_thresholds, {
     rv$submission_by = input$choose_gso
+    protein_type <<- input$choose_protein_type
     print(paste("rv$submission_by", rv$submission_by))
     
     fc_filter_low <<- input$slider_lfc[1] 
@@ -392,6 +393,8 @@ observeEvent(
     rv$submission_by = input$choose_gso
     print(paste("rv$submission_by", rv$submission_by))
     
+    
+
     input_genes = switch(input$choose_custom_gso,
                          File = read_file(input$gso_file_input$datapath),
                          Text = input$gso_text_input

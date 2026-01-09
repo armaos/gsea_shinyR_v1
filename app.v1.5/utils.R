@@ -168,6 +168,33 @@ clean_RunAcc <- function(runacc){
 }
 
 
+filter_by_protein_type <- function(id_set, proteinType){
+  id_set <- data.frame(primary_name = id_set)
+  
+  # Handle multiple protein types - take union of all selected types
+  selected_genes <- c()
+  
+  if("Nuclear" %in% proteinType) {
+    selected_genes <- c(selected_genes, nuclear)
+  }
+  if("Chloroplast" %in% proteinType) {
+    selected_genes <- c(selected_genes, chloroplast)
+  }
+  if("Mitochondrial" %in% proteinType) {
+    selected_genes <- c(selected_genes, mitochondrial)
+  }
+  
+  # Take union (remove duplicates) and filter
+  if(length(selected_genes) > 0) {
+    selected_genes <- unique(selected_genes)
+    id_set <- id_set %>% filter(primary_name %in% selected_genes)
+  }
+  
+  return(id_set$primary_name)
+}
+
+
+
 get_choices_for_contrasts <- function(colnames_filtered, subgroup, subgroup_class, treatment){
   
   # extract inter contrasts if treatments

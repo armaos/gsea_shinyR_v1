@@ -12,8 +12,8 @@ degs <<- subset(rv$msi_df %>%
                 filter(abs(logFC) >= fc_filter_low & FDR <= fdr_filter))$primary_name
 
 degs<<-unique(degs)
+degs <<- filter_by_protein_type(degs, protein_type )
 #print("DEGS")
-print(paste(head(degs), collapse = "," ))
 
 rv$all_together_tcpm <- rv$msi_df %>% 
   filter(primary_name %in% degs)

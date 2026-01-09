@@ -71,13 +71,13 @@
     }
   })
   
-  observeEvent(input$choose_protein_type, {
-    if(is.null(input$choose_protein_type) | length(input$choose_protein_type) == 0){
-      showNotification(paste("Nuclear Genes automatically selected"), duration = 3, type = "warning")
-    }else if("Chloroplast" %in% input$choose_protein_type | "Mitochondrial" %in% input$choose_protein_type){
-      showNotification(paste("Chloroplast and Mitochondrial Genes haven't been defined yet. Nuclear Genes automatically selected"), duration = 3, type = "warning")
-    }
-  })
+  # observeEvent(input$choose_protein_type, {
+  #   if(is.null(input$choose_protein_type) | length(input$choose_protein_type) == 0){
+  #     showNotification(paste("Nuclear Genes automatically selected"), duration = 3, type = "warning")
+  #   }else if("Chloroplast" %in% input$choose_protein_type | "Mitochondrial" %in% input$choose_protein_type){
+  #     showNotification(paste("Chloroplast and Mitochondrial Genes haven't been defined yet. Nuclear Genes automatically selected"), duration = 3, type = "warning")
+  #   }
+  # })
   
   
   
@@ -168,7 +168,8 @@
       default_columns = c("In_DE_data", colnames(rv$msi_df)) #[1:which(colnames(rv$msi_df) == "Ontology_term") - 1]
       default_columns = default_columns[default_columns != "Name"]
       default_columns = c(default_columns, "Name_aliases")
-      rv$msi_df <- rv$msi_df %>% left_join(annotations_default, by = c("primary_name" = "Name"))
+      rv$msi_df <- rv$msi_df %>% left_join(annotations_default, by = c("primary_name" = "Name")) %>%
+        arrange(desc(In_DE_data))
       
       #rv$msi_df = as.data.frame(read.table(paste0("MSI_Kal_t_18_june22_annotated/", rv$condition, "_all_values.csv"), header = T , sep = "\t", quote = ""))
       #rv$msi_df = rv$msi_df %>% mutate(primary_name = Name) %>% separate(primary_name, c("primary_name"), ",") %>% select(Name, everything() ) #%>% select(-condition, )
@@ -179,7 +180,7 @@
       ##### UPDATE COLUMNS IN THE DATA overview
       #annotations_columns = colnames(rv$msi_df)[which(colnames(rv$msi_df) == "Ontology_term" ) : ( length(colnames(rv$msi_df) ) -1 )] 
       contrast_cols = colnames(head(rv$msi_df, 1) %>% select(contains(c("logFC", "logCPM" ,"FDR"))))
-      updatePickerInput(session, "overview_table_Default_values", choices = default_columns, selected = c("primary_name", "In_DE_data", contrast_cols))
+      updatePickerInput(session, "overview_table_Default_values", choices = default_columns, selected = c("Name_aliases", "primary_name", "In_DE_data", contrast_cols))
       #rv$msi_df <- rv$msi_df %>% left_join(annotations)
       updatePickerInput(session, "annotatations_ips", choices = annotations_columns[startsWith(annotations_columns, prefix = "ips_")])
       updatePickerInput(session, "annotatations_em", choices = annotations_columns[startsWith(annotations_columns, prefix = "em_")])
@@ -202,7 +203,7 @@
       ##### UPDATE COLUMNS IN THE SELECTED DATA overview
       #annotations_columns = colnames(rv$msi_df)[which(colnames(rv$msi_df) == "Ontology_term" ) : ( length(colnames(rv$msi_df) ) -1 )] 
       contrast_cols = colnames(head(rv$msi_df, 1) %>% select(contains(c("logFC", "logCPM" ,"FDR"))))
-      updatePickerInput(session, "selected_overview_table_Default_values", choices = default_columns, selected = c("primary_name", "In_DE_data", contrast_cols))
+      updatePickerInput(session, "selected_overview_table_Default_values", choices = default_columns, selected = c("Name_aliases", "primary_name", "In_DE_data", contrast_cols))
       #rv$msi_df <- rv$msi_df %>% left_join(annotations)
       updatePickerInput(session, "selected_annotatations_ips", choices = annotations_columns[startsWith(annotations_columns, prefix = "ips_")])
       updatePickerInput(session, "selected_annotatations_em", choices = annotations_columns[startsWith(annotations_columns, prefix = "em_")])
