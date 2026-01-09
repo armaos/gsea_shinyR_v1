@@ -11,8 +11,16 @@ degs <<- subset(rv$msi_df %>%
                 spread(value_type, v) %>% 
                 filter(abs(logFC) >= fc_filter_low & FDR <= fdr_filter))$primary_name
 
+print(paste("top msi", head(rv$msi_df %>%
+                select(primary_name, contains("FDR"), contains("logFC"))  %>% 
+                gather(k, v , -primary_name) %>% 
+                separate(k, c("cond", "value_type"), sep = "[.]") %>% 
+                spread(value_type, v) %>% arrange(desc(FDR))), collapse = ", "))
+                
 degs<<-unique(degs)
+print(paste("degs dim: ",dim(degs), collapse = ", "))
 degs <<- filter_by_protein_type(degs, protein_type )
+print(paste("degs after protein type filter dim: ",dim(degs), collapse = ", "))
 #print("DEGS")
 
 rv$all_together_tcpm <- rv$msi_df %>% 
