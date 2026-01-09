@@ -121,7 +121,7 @@ fluidRow(
                                 "Brown vs Green in High" = "B_G_in_L",
                                 "Brown vs Green in Low" = "B_G_in_D"
                     ),
-                    multiple = T),
+                    multiple = F),
         shinyjs::disabled(actionButton("submit_contrast", label = "Submit Contrast")),
         shinyjs::hidden(h2(id = "submitted_contrast1", "Contrast submitted Successfully.")),
         #shinyjs::hidden(p(id = "submitted_contrast2", "You can head to ORA and GSEA Analysis now!")),

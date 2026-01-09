@@ -18,6 +18,9 @@ annotations_default <- annotations_default %>%
   select(-any_of(c("protein_product", "seqid", "start", "end", "strand"))) 
 
 
+annotations_columns = sort(colnames(annotations_default))
+
+
 #####
 go_file = "Ka.vunion2_GO_terms_manipulate.txt"
 if(!file.exists(go_file)) {
