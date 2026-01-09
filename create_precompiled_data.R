@@ -181,19 +181,26 @@ parse_sample_name <- function(name) {
   # Extract subgroup class (Brown or Green)
   subgroup_class <- ifelse(str_detect(group, "^B"), "Brown", "Green")
   
-  # Convert B1 -> Brown1, G1 -> Green1
+  # Convert B1 -> Brown1, G1 -> Green1 (for internal use)
   group_label <- ifelse(str_detect(group, "^B"), 
                         str_replace(group, "^B", "Brown"),
                         str_replace(group, "^G", "Green"))
   
-  # Create column name: Brown1.Low, Green2.Medium, etc.
+  # Create column name for internal processing: Brown1.Low, Green2.Medium, etc.
   colname <- paste0(group_label, ".", treatment)
+  
+  # Create short format for output: B1.D, G2.L, etc.
+  # Convert treatment to short code: Low->D, High->L, Medium->O
+  treatment_code <- ifelse(treatment == "Low", "D",
+                          ifelse(treatment == "High", "L", "O"))
+  colname_short <- paste0(group, ".", treatment_code)
   
   return(list(
     subgroup = group,
     subgroup_class = subgroup_class,
     treatment = treatment,
-    colname = colname
+    colname = colname,
+    colname_short = colname_short
   ))
 }
 
@@ -202,6 +209,7 @@ metadata_list <- lapply(sample_names, parse_sample_name)
 metadata_df <- do.call(rbind, lapply(metadata_list, function(x) {
   data.frame(
     sample = x$colname,
+    sample_short = x$colname_short,
     subgroup = x$subgroup,
     subgroup_class = x$subgroup_class,
     treatment = x$treatment,
@@ -209,7 +217,7 @@ metadata_df <- do.call(rbind, lapply(metadata_list, function(x) {
   )
 }))
 
-# Rename columns in filtered data
+# Rename columns in filtered data (use long format for internal processing)
 colnames(filtered) <- metadata_df$sample[match(colnames(filtered), sample_names)]
 
 cat("Sample metadata:\n")
@@ -369,7 +377,7 @@ for (contrast_str in all_contrasts) {
   }
   
   deg.edger1 <- deg.edger0[order(abs(deg.edger0$logFC) * (-log10(deg.edger0$FDR)), 
-                                 decreasing = TRUE)[1:min(150, nrow(deg.edger0))], ]
+                                 decreasing = TRUE)[seq_len(min(150, nrow(deg.edger0)))], ]
   degnames1 <- rownames(deg.edger1)
   degnames1 <- grep("^Gm\\d+|Rik$|^RP\\d+", degnames1, invert = TRUE, value = TRUE)
   
@@ -381,19 +389,37 @@ for (contrast_str in all_contrasts) {
   v0$change <- as.factor(ifelse(v0$FDR <= fdrT & abs(v0$logFC) >= lfcT,
                                 ifelse(v0$logFC >= lfcT, "Up", "Down"), "NotSig"))
   
-  # Prepare output dataframe (remove genelabels and change before adding counts)
+  # Prepare output dataframe - keep genelabels and change, keep rownames
+  # Column order: logFC, logCPM, LR, PValue, FDR, genelabels, change
   v0 <- v0 %>%
-    mutate(Name = rownames(v0)) %>%
-    select(Name, everything()) %>%
-    select(-c(genelabels, change))
-  rownames(v0) <- NULL
+    select(logFC, logCPM, LR, PValue, FDR, genelabels, change, everything())
   
-  # Add count data
-  counts <- as.data.frame(y$counts)
-  counts <- counts %>% mutate(Name = rownames(counts))
-  rownames(counts) <- NULL
+  # Get count data from the full filtered dataset (all samples)
+  # Need to get the original y object with all samples, not just the contrast subset
+  # Recreate y from full filtered data for this purpose
+  y_full <- calculate_y(filtered, factor(metadata_df$treatment))
   
-  v0 <- v0 %>% left_join(counts, by = "Name")
+  # Get counts for all samples
+  counts <- as.data.frame(y_full$counts)
+  
+  # Map long column names to short format for output (B1.D, G2.L, etc.)
+  colname_mapping <- metadata_df %>%
+    filter(sample %in% colnames(counts)) %>%
+    select(sample, sample_short)
+  
+  # Rename count columns to short format
+  for (i in seq_len(nrow(colname_mapping))) {
+    old_name <- colname_mapping$sample[i]
+    new_name <- colname_mapping$sample_short[i]
+    if (old_name %in% colnames(counts)) {
+      colnames(counts)[colnames(counts) == old_name] <- new_name
+    }
+  }
+  
+  # Combine v0 (with rownames) and counts
+  # Use cbind to preserve rownames (matching MSI script format)
+  # Only include rows that are in v0
+  v0 <- cbind(v0, counts[rownames(v0), , drop = FALSE])
   
   # Map to condition name
   # Build the mapping key
@@ -422,8 +448,9 @@ for (contrast_str in all_contrasts) {
   cat("  Mapped to condition:", cond_name, "\n")
   
   # Save to file
+  # Format: rownames as first column (empty header), then logFC, logCPM, LR, PValue, FDR, genelabels, change, then sample counts
   output_file <- file.path(output_dir, paste0(cond_name, "_all_values.csv"))
-  write.table(v0, output_file, sep = "\t", row.names = FALSE, quote = FALSE)
+  write.table(v0, output_file, sep = "\t", row.names = TRUE, quote = FALSE, col.names = NA)
   cat("  Saved to:", output_file, "\n")
   cat("  Genes:", nrow(v0), "\n")
 }
