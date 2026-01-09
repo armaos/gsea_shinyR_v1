@@ -22,7 +22,7 @@ library(clusterProfiler)
 library(enrichplot)
 library(pathview)
 library(ggupset )
-library(paws)
+# library(paws)
 #
 library("edgeR")
 library(ggrepel) 
