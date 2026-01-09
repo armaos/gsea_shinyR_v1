@@ -244,6 +244,9 @@ metadata_df <- do.call(rbind, lapply(metadata_list, function(x) {
 # Apply to both CPM (filtered) and counts (filtered_counts)
 colnames(filtered) <- metadata_df$sample[match(colnames(filtered), sample_names)]
 colnames(filtered_counts) <- metadata_df$sample[match(colnames(filtered_counts), sample_names)]
+# Also rename normMat_full and y_full columns to match (needed for subsetting later)
+colnames(normMat_full) <- metadata_df$sample[match(colnames(normMat_full), sample_names)]
+colnames(y_full$counts) <- metadata_df$sample[match(colnames(y_full$counts), sample_names)]
 
 cat("Sample metadata:\n")
 print(metadata_df)

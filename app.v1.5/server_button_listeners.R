@@ -834,27 +834,60 @@ observeEvent(
     })
   })
 
+
+
 observeEvent(
   eventExpr = input$submit_custom_upset_plot, {  
-    if (input$custom_upset_terms != "" & length(input$custom_upset_terms) > 0 ){
-      gsea_df_list <- bind_rows(lapply(rv$gsea_list, as.data.frame), .id = "column_label") 
-      #print(paste(head(gsea_df_list, 2), collapse = " ,") )
-      rv$gsea_custom_upsetplot <- gsea_df_list %>%
-        select(Description, core_enrichment) %>%
-        filter(Description %in% input$custom_upset_terms) %>%
-        separate_rows(core_enrichment, sep = "/") %>%
-        mutate(Description = ifelse(str_length(Description) > 30, paste0(str_sub(Description,1,30), "..."), Description)) %>%
-        group_by(core_enrichment) %>%
-        summarise(terms = list(Description)) %>%
-        ggplot(aes(x=terms)) +
-        geom_bar() +
-        scale_x_upset()
-    }else{
-      rv$gsea_custom_upsetplot = NULL
-    }
+    tryCatch({
+      if (!is.null(input$custom_upset_terms) & length(input$custom_upset_terms) > 0 ){
+        gsea_df_list <- bind_rows(lapply(rv$gsea_list, as.data.frame), .id = "column_label") 
+        #print(paste(head(gsea_df_list, 2), collapse = " ,") )
+        custom_upset_df = gsea_df_list %>%
+          distinct(Description, core_enrichment) %>%
+          filter(Description %in% input$custom_upset_terms) %>%
+          separate_rows(core_enrichment, sep = "/") 
+          #mutate(Description = ifelse(str_length(Description) > 30, paste0(str_sub(Description,1,30), "..."), Description)) 
+        
+      
+        rv$custom_upset_table_per_gene <-  custom_upset_df %>% 
+          distinct(core_enrichment, Description) %>% 
+          mutate(present = "TRUE") %>% 
+          spread(Description, present) %>% 
+          mutate_all(~replace_na(., "FALSE")) 
+        
+        rv$custom_upset_table <- rv$custom_upset_table_per_gene %>%
+          group_by(across(c(-core_enrichment))) %>%
+          summarise(genes = paste(core_enrichment, collapse = ",")) 
+        
+      
+        
+        rv$gsea_custom_upsetplot <-  custom_upset_df %>%
+          group_by(core_enrichment) %>%
+          summarise(terms = list(Description)) %>%
+          ggplot(aes(x=terms)) +
+          geom_bar() +
+          scale_x_upset() +
+          labs(title = paste(gsea_cond_tab, enrichment_term_gsea , sep = " - ")) +
+          theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+
+        shinyjs::show("custom_upsettable_box")
+      }else{
+        shinyjs::hide("custom_upsettable_box")
+        print("input$custom_upset_terms is not valid")
+        print(input$custom_upset_terms)
+        rv$gsea_custom_upsetplot = NULL
+        rv$custom_upset_table = data.frame()
+        rv$custom_upset_table_per_gene = data.frame()
+      }
+    }, error = function(e) {
+      # Handle the error, for example, you can show an error message
+      showNotification("An error occurred: ", e$message, type = "error")
+      shinyjs::hide("custom_upsettable_box")
+    })
   }
 )
-
 
 
 

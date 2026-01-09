@@ -124,5 +124,9 @@ ko_Pathway <- as.data.frame(read.table("vunion2_KO_Pathways.txt", header = T, co
   filter(val %in% ko_Pathway_terms$V1)  
 
 
+ko_nodes <- as.data.frame(read.table("KEGGmaps_and_nodes.txt", header = F, sep = "\t") ) %>% 
+  rename(map = V1, nodes = V2) %>%
+  mutate(map = str_replace(map, "ko", ""))
+
 
 setwd(cur_dir)
