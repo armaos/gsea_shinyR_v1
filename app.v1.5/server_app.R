@@ -106,7 +106,8 @@
           select(all_of(annotations_columns)) %>% 
           full_join(rv$msi_df) %>% 
           mutate(In_DE_data = !(if_all(contains("logFC"), is.na))) %>%
-          mutate(In_DE_data = ifelse(In_DE_data, "Yes", "No"))
+          mutate(In_DE_data = ifelse(In_DE_data, "Yes", "No")) %>%
+          arrange(desc(In_DE_data)) 
       }
       
   })
@@ -168,8 +169,7 @@
       default_columns = c("In_DE_data", colnames(rv$msi_df)) #[1:which(colnames(rv$msi_df) == "Ontology_term") - 1]
       default_columns = default_columns[default_columns != "Name"]
       default_columns = c(default_columns, "Name_aliases")
-      rv$msi_df <- rv$msi_df %>% left_join(annotations_default, by = c("primary_name" = "Name")) %>%
-        arrange(desc(In_DE_data))
+      rv$msi_df <- rv$msi_df %>% left_join(annotations_default, by = c("primary_name" = "Name")) 
       
       #rv$msi_df = as.data.frame(read.table(paste0("MSI_Kal_t_18_june22_annotated/", rv$condition, "_all_values.csv"), header = T , sep = "\t", quote = ""))
       #rv$msi_df = rv$msi_df %>% mutate(primary_name = Name) %>% separate(primary_name, c("primary_name"), ",") %>% select(Name, everything() ) #%>% select(-condition, )
