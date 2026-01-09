@@ -416,10 +416,40 @@ for (contrast_str in all_contrasts) {
     }
   }
   
-  # Combine v0 (with rownames) and counts
+  # Select only relevant columns for this contrast (matching MSI script logic)
+  # For inter contrasts: select by treatment suffix (e.g., .D and .O for D_O)
+  # For intra contrasts: select by group prefix and treatment suffix (e.g., B.*.D and G.*.D for B_G_in_D)
+  if (conditional_treatment != "") {
+    # Intra contrast: select by group prefix (B or G) and treatment suffix
+    # e.g., for B_G_in_D: select B1.D, B2.D, ... G1.D, G2.D, ... (only .D columns)
+    # Convert "Brown" -> "B", "Green" -> "G" for matching short format column names
+    group_1_short <- ifelse(group_1 == "Brown", "B", "G")
+    group_2_short <- ifelse(group_2 == "Brown", "B", "G")
+    treatment_code <- ifelse(conditional_treatment == "Low", "D",
+                            ifelse(conditional_treatment == "High", "L", "O"))
+    selectedCols <- c(
+      grep(paste0("^", group_1_short, "[1-9,a-z,A-Z]*\\.", treatment_code, "$"), colnames(counts), perl = TRUE),
+      grep(paste0("^", group_2_short, "[1-9,a-z,A-Z]*\\.", treatment_code, "$"), colnames(counts), perl = TRUE)
+    )
+  } else {
+    # Inter contrast: select by treatment suffix
+    # e.g., for D_O: select all .D and .O columns
+    treatment_code_1 <- ifelse(group_1 == "Low", "D",
+                              ifelse(group_1 == "High", "L", "O"))
+    treatment_code_2 <- ifelse(group_2 == "Low", "D",
+                              ifelse(group_2 == "High", "L", "O"))
+    selectedCols <- c(
+      grep(paste0("\\.", treatment_code_1, "$"), colnames(counts)),
+      grep(paste0("\\.", treatment_code_2, "$"), colnames(counts))
+    )
+  }
+  
+  # Subset counts to only selected columns
+  counts_selected <- counts[, selectedCols, drop = FALSE]
+  
+  # Combine v0 (with rownames) and selected counts
   # Use cbind to preserve rownames (matching MSI script format)
-  # Only include rows that are in v0
-  v0 <- cbind(v0, counts[rownames(v0), , drop = FALSE])
+  v0 <- cbind(v0, counts_selected[rownames(v0), , drop = FALSE])
   
   # Map to condition name
   # Build the mapping key
