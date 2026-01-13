@@ -42,7 +42,40 @@ ui <- dashboardPage(
           line-height:34px;
           display: table-row; 
           margin: 0;  
-          }"
+          }
+      #loading_overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background-color: rgba(0, 0, 0, 0.85);
+          z-index: 9999;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          flex-direction: column;
+      }
+      #loading_spinner {
+          border: 5px solid rgba(255, 255, 255, 0.3);
+          border-top: 5px solid #ffffff;
+          border-radius: 50%;
+          width: 50px;
+          height: 50px;
+          animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+      }
+      #loading_status_text {
+          color: white;
+          font-size: 18px;
+          margin-top: 20px;
+          text-align: center;
+          font-family: \"Helvetica Neue\", Helvetica, Arial, sans-serif;
+      }
+      "
     )),
     tags$script('$(document).on("shiny:sessioninitialized",function(){$.get("https://api.ipify.org", function(response) {Shiny.setInputValue("getIP", response);});})'),
       tags$style("@import url(https://use.fontawesome.com/releases/v5.3.0/css/all.css);"),
@@ -50,6 +83,24 @@ ui <- dashboardPage(
     tags$script(HTML(header_title_javascript)),
     useShinyjs(),
     #extendShinyjs(text = collapsa_box_jscode, functions = c("collapse") ),
+    
+    # Loading overlay - shown initially, hidden once Shiny is ready
+    div(id = "loading_overlay",
+        div(id = "loading_spinner"),
+        div(id = "loading_status_text", "Loading annotation data...")
+    ),
+    
+    # JavaScript to hide loading overlay once Shiny is initialized
+    tags$script(HTML('
+      $(document).on("shiny:connected", function() {
+        setTimeout(function() {
+          $("#loading_overlay").fadeOut(500, function() {
+            $(this).remove();
+          });
+        }, 500); // Small delay to ensure everything is ready
+      });
+    ')),
+    
     # Boxes need to be put in a row (or column)
     tabItems(
       # First tab content

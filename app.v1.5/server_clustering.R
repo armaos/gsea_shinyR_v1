@@ -4,23 +4,49 @@ print("start server _clustering observer")
 
 print(paste("server clustering MSI df dim: ",dim(rv$msi_df), collapse = ", "))
 
-degs <<- subset(rv$msi_df %>%
-                select(primary_name, contains("FDR"), contains("logFC"))  %>% 
-                gather(k, v , -primary_name) %>% 
-                separate(k, c("cond", "value_type"), sep = "[.]") %>% 
-                spread(value_type, v) %>% 
-                filter(abs(logFC) >= fc_filter_low & FDR <= fdr_filter))$primary_name
+# Reshape DE statistics: select only FDR and logFC columns, split condition from statistic
+# Pattern: {condition}.{statistic} (e.g., "Low_Medium.logFC", "Low_Medium.FDR")
+# Be explicit: only select columns that END with ".FDR" or ".logFC"
+de_stat_cols <- colnames(rv$msi_df)[endsWith(colnames(rv$msi_df), ".FDR") | endsWith(colnames(rv$msi_df), ".logFC")]
 
-print(paste("top msi", head(rv$msi_df %>%
-                select(primary_name, contains("FDR"), contains("logFC"))  %>% 
-                gather(k, v , -primary_name) %>% 
-                separate(k, c("cond", "value_type"), sep = "[.]") %>% 
-                spread(value_type, v) %>% arrange(desc(FDR))), collapse = ", "))
-                
-degs<<-unique(degs)
-print(paste("degs dim: ",dim(degs), collapse = ", "))
-degs <<- filter_by_protein_type(degs, protein_type )
-print(paste("degs after protein type filter dim: ",dim(degs), collapse = ", "))
+print("DE stat columns found:")
+print(de_stat_cols)
+
+msi_de_stats <- rv$msi_df %>% rename_with(~ sub("^.*\\.(FDR|logFC|logCPM|LR|PValue|)$", "\\1", .x))
+msi_de_stats <- msi_de_stats %>%
+  mutate(across(any_of(c("FDR", "logFC")), ~ as.numeric(.x)))
+  
+
+# Filter for DEGs
+degs <<- msi_de_stats %>%
+  filter(abs(logFC) >= fc_filter_low & FDR <= fdr_filter) %>%
+  pull(primary_name)
+
+print(paste("fc_filter_low: ", fc_filter_low))
+print(paste("fdr_filter: ", fdr_filter))
+print(paste("top msi (reshaped):"))
+print(head(msi_de_stats %>% arrange(logFC)))
+
+print(paste("filter msi (after filter):"))
+filtered_degs <- msi_de_stats %>%
+  filter(abs(logFC) >= fc_filter_low & FDR <= fdr_filter) %>%
+  arrange(desc(abs(logFC)))
+print(head(filtered_degs))
+
+print(paste("degs after pull (before unique):"))
+print(paste("  length:", length(degs)))
+print(paste("  class:", class(degs)))
+print(paste("  first few:", paste(head(degs, 5), collapse = ", ")))
+
+degs <<- unique(degs)
+print(paste("degs after unique:"))
+print(paste("  length:", length(degs)))
+print(paste("  first few:", paste(head(degs, 5), collapse = ", ")))
+
+degs <<- filter_by_protein_type(degs, protein_type)
+print(paste("degs after protein type filter:"))
+print(paste("  length:", length(degs)))
+print(paste("  first few:", paste(head(degs, 5), collapse = ", ")))
 #print("DEGS")
 
 rv$all_together_tcpm <- rv$msi_df %>% 

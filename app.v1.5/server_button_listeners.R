@@ -521,17 +521,25 @@ observeEvent(
         if (input$enrichment_term_gsea %in% c("biological_process", "molecular_function", "cellular_component")){
           term2gene = go2gene_all %>% filter(val %in% subset(go_terms %>% filter(GO_namespace == input$enrichment_term_gsea & ArabT == "0"))$GO_ID)
           term2name = go_terms %>% filter(GO_namespace == input$enrichment_term_gsea & ArabT == "0")
-      
+          enrichment_term_gsea <<- switch(
+            input$enrichment_term_gsea, 
+            "biological_process" = "GO BP",
+            "molecular_function" = "GO MF", 
+            "cellular_component" = "GO CC")
           
         }else if (input$enrichment_term_gsea %in% c("biological_process_arth", "molecular_function_arth", "cellular_component_arth")){
           term2gene = go2gene_all %>% filter(val %in% subset(go_terms %>% filter(GO_namespace == str_remove(input$enrichment_term_gsea, "_arth") & ArabT == "1"))$GO_ID)
           term2name = go_terms %>% filter(GO_namespace == str_remove(input$enrichment_term_gsea, "_arth") & ArabT == "1")
           
-          
+          enrichment_term_gsea <<- switch(
+            input$enrichment_term_gsea, 
+            "biological_process_arth" = "GO BP (Atha)",
+            "molecular_function_arth" = "GO MF (Atha)", 
+            "cellular_component_arth" = "GO CC (Atha)")
         }else if(input$enrichment_term_gsea == "KEGG_Pathways"){
           term2gene = ko_Pathway
           term2name = ko_Pathway_terms
-         
+          enrichment_term_gsea <<- input$enrichment_term_gsea
         }
         
         incProgress(0.1, detail = paste("Running GSEA ..."))
@@ -578,7 +586,6 @@ observeEvent(
         
         shinyjs::hide("text_KEGGscape_GSEA")
         shinyjs::show("gsea_kegg_pathway_table")
-        
         
         
         
@@ -836,6 +843,34 @@ observeEvent(
 
 
 
+
+observeEvent(
+  eventExpr = input$submit_custom_upset_plot, {  
+    tryCatch({
+    
+      if (!is.null(input$custom_upset_terms) & length(input$custom_upset_terms) > 0 ){
+        gsea_df_list <- bind_rows(lapply(rv$gsea_list, as.data.frame), .id = "column_label") 
+        #print(paste(head(gsea_df_list, 2), collapse = " ,") )
+        rv$gsea_custom_upsetplot <- gsea_df_list %>%
+          select(Description, core_enrichment) %>%
+          filter(Description %in% input$custom_upset_terms) %>%
+          separate_rows(core_enrichment, sep = "/") %>%          
+          group_by(core_enrichment) %>%
+          summarise(terms = list(Description)) %>%
+          ggplot(aes(x=terms)) +
+          geom_bar() +
+          scale_x_upset()
+      }else{
+        rv$gsea_custom_upsetplot = NULL
+      }
+      }, error = function(e) {
+        # Handle the error, for example, you can show an error message
+        showNotification("An error occurred: ", e$message, type = "error")
+        shinyjs::hide("custom_upsettable_box")
+      })
+  }
+)
+
 observeEvent(
   eventExpr = input$submit_custom_upset_plot, {  
     tryCatch({
@@ -867,7 +902,7 @@ observeEvent(
           ggplot(aes(x=terms)) +
           geom_bar() +
           scale_x_upset() +
-          labs(title = paste(gsea_cond_tab, enrichment_term_gsea , sep = " - ")) +
+          labs(title = enrichment_term_gsea) +
           theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 

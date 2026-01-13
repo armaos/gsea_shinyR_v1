@@ -14,6 +14,8 @@ pca_data_list  <- list()
 fdr_filter <- 0
 fc_filter_low <- 0
 fc_filter_high <- 0
+enrichment_term_gsea <- ""
+
 correct_metadata_input = T
 precomp_metadata <- data.frame()
 fastqc_files <- data.frame()

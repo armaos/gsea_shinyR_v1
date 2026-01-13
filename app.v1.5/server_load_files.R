@@ -6,12 +6,11 @@ annotations_default = as.data.frame(read.delim2("v_union2_v3.2_annotation_table.
 
 
 # this file was calculated in the annot_table.r in bcro
-txi_names = as.data.frame(read.delim2("all_Names_mapped.txt", header = T, sep = "\t", fill = T,  quote = ""))  %>% 
-  dplyr::rename( GENEID = gene_id_internal)
-mitochondrial <- subset(txi_names %>% filter(source == "merge_mito_tabular.txt"))$GENEID
-chloroplast <- subset(txi_names %>% filter(source == "merge_chloro_tabular.txt"))$GENEID
-nuclear <- subset(txi_names %>% filter(!source %in% c("merge_chloro_tabular.txt", "merge_mito_tabular.txt" )))$GENEID
-#tx2gene <- txi_names %>% select(Name, GENEID) %>% dplyr::rename(TXNAME = Name)
+txi_names = as.data.frame(read.delim2("all_Names_mapped.txt", header = T, sep = "\t", fill = T,  quote = ""))  
+mitochondrial <- subset(txi_names %>% filter(source == "merge_mito_tabular.txt"))$ID
+chloroplast <- subset(txi_names %>% filter(source == "merge_chloro_tabular.txt"))$ID
+nuclear <- subset(txi_names %>% filter(!source %in% c("merge_chloro_tabular.txt", "merge_mito_tabular.txt" )))$ID
+
 
 annotations_default <- annotations_default %>% 
   select(colnames(annotations_default)[!grepl("exp_", colnames(annotations_default))]) %>%
@@ -25,7 +24,7 @@ annotations_columns = sort(colnames(annotations_default))
 go_file = "Ka.vunion2_GO_terms_manipulate.txt"
 if(!file.exists(go_file)) {
   annotations_default %>%
-    filter(Name %in% txi_names$GENEID) %>% 
+    filter(Name %in% txi_names$ID | Name %in% txi_names$Name) %>% 
     select(Name, em_GOs, b2go_GO_id, ips_GO_ids, arabThal_GO_ID, w2go_GO_id, cr2go_GO_id) %>%
     gather(key, val, c( "em_GOs", "b2go_GO_id", "ips_GO_ids", "arabThal_GO_ID", "w2go_GO_id", "cr2go_GO_id")) %>%
     filter(val != "-" & val != "" & !is.na(val)) %>%
